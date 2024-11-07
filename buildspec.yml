@@ -60,7 +60,7 @@ phases:
       # - mvn -f ./bayview-common-services/config-service/pom.xml clean package -P deployment -Dpackage.location=/opt/
       # - ls -l /opt/
 
-      - mvn clean package -DskipTests
+      - mvn clean package 
       - ls -l target/
       - echo =================== Logging in to Docker Hub ===================
       - echo $DOCKER_HUB_PASSWORD | docker login --username $DOCKER_HUB_USERNAME --password-stdin
