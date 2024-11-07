@@ -1,0 +1,79 @@
+version: 0.2
+
+env:
+  variables:
+    DOCKER_HUB_USERNAME: "amitayare" 
+    DOCKER_HUB_PASSWORD: "your-docker-password"  
+    REPOSITORY_URI: "992382731807.dkr.ecr.ap-south-1.amazonaws.com/symboco-sit-registry"  
+
+phases:
+  install:
+    commands:
+      # Update and install required dependencies
+      - echo "================ Installing dependencies =================="
+      - apt-get update
+      - apt-get install -y openjdk-8-jdk docker.io
+      - curl -sL https://archive.apache.org/dist/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz | tar xz -C /opt
+      - export PATH=/opt/apache-maven-3.3.9/bin:$PATH
+      - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+      - update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/bin/java
+      - java -version
+      - docker --version
+      - echo "Dependencies installed successfully."
+
+  pre_build:
+    commands:
+      # Run Maven to clean, compile, and package the application
+      - echo "================ Running Maven clean package =================="
+      - mvn clean package -DskipTests
+      - echo "================ Listing the JAR file =================="
+      - ls -l target/
+      # Optionally: Check if the JAR exists, then proceed
+      - if [ ! -f target/*.jar ]; then echo "JAR file not found!" && exit 1; fi
+
+      # Logging into Docker Hub
+      - echo "================ Logging in to Docker Hub ==================="
+      - echo $DOCKER_HUB_PASSWORD | docker login --username $DOCKER_HUB_USERNAME --password-stdin
+
+      # Logging into AWS ECR
+      - echo "================ Logging in to Amazon ECR ==================="
+      - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $REPOSITORY_URI
+
+      # Set variables for image name and tag
+      - IMAGENAME=symboco
+      - DATE_TAG=$(date +%Y-%m-%d_%H%M%S)
+      - IMAGE_TAG=$DATE_TAG
+      - echo "Image Name: $IMAGENAME"
+      - echo "Image Tag: $IMAGE_TAG"
+
+  build:
+    commands:
+      # Build the Docker image
+      - echo "================ Building the Docker image ==================="
+      - docker build --no-cache -t $IMAGENAME:$IMAGE_TAG .
+      - docker images
+      - echo "Docker image built successfully."
+
+  post_build:
+    commands:
+      # Tag the Docker image for both Docker Hub and ECR
+      - echo "================ Tagging the Docker image ==================="
+      - docker tag $IMAGENAME:$IMAGE_TAG amitayare/devops:$IMAGE_TAG
+      - docker tag $IMAGENAME:$IMAGE_TAG amitayare/devops:latest
+      - docker tag $IMAGENAME:$IMAGE_TAG $REPOSITORY_URI:$IMAGE_TAG
+      - docker tag $IMAGENAME:$IMAGE_TAG $REPOSITORY_URI:latest
+
+      # Push the Docker image to Docker Hub
+      - echo "================ Pushing the Docker image to Docker Hub ==================="
+      - docker push amitayare/devops:$IMAGE_TAG
+      - docker push amitayare/devops:latest
+
+      # Push the Docker image to Amazon ECR
+      - echo "================ Pushing the Docker image to Amazon ECR ==================="
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - docker push $REPOSITORY_URI:latest
+
+artifacts:
+  files:
+    - target/*.jar  # Include the JAR file as an artifact to be used in subsequent stages or for debugging
+
