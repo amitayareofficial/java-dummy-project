@@ -76,4 +76,3 @@ phases:
 artifacts:
   files:
     - target/*.jar  # Include the JAR file as an artifact to be used in subsequent stages or for debugging
-
