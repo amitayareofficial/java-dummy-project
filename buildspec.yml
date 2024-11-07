@@ -9,70 +9,100 @@ env:
 phases:
   install:
     commands:
-      # Install required dependencies
-      - echo "================ Installing dependencies =================="
+      # Update and install required dependencies
       - apt-get update
-      - apt-get install -y openjdk-8-jdk docker.io
+      - apt-get install -y openjdk-8-jdk
+
+      # Install Docker
+      - echo "================ Installing Docker... =================="
+      - apt-get install -y docker.io
+      - docker --version
+      - ps aux | grep docker
+
+      # Install Maven 3.3.9 from the official 
+      - echo "Installing Apache Maven 3.3.9..."
       - curl -sL https://archive.apache.org/dist/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz | tar xz -C /opt
       - export PATH=/opt/apache-maven-3.3.9/bin:$PATH
+
+      # Set JAVA_HOME and MAVEN_HOME
       - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+      - export MAVEN_HOME=/opt/apache-maven-3.3.9
+      - export PATH=$JAVA_HOME/bin:$MAVEN_HOME/bin:$PATH
+
+      # Set Java 8 as the default Java version
+      - update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-8-openjdk-amd64/bin/java 1
       - update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/bin/java
-      - java -version
-      - docker --version
-      - echo "Dependencies installed successfully."
+      - java -version  
+      # - mvn -v
+      - cat /etc/os-release      
 
   pre_build:
     commands:
-      # Run Maven to clean, compile, and package the application
-      - echo "================ Running Maven clean package =================="
-      - mvn clean package -DskipTests
-      - echo "================ Listing the JAR file =================="
-      - ls -l target/
-      # Ensure JAR file exists
-      - if [ ! -f target/*.jar ]; then echo "JAR file not found!" && exit 1; fi
+      - echo "Listing files in the current directory..."
+      - pwd
+      - ls -l 
+      # #optinal steps taking jar directly for docker image testing.-----------------------------------------
+      # - mkdir -p /opt/config-service-deployable
+      # - mv config-service-0.0.1-SNAPSHOT.jar /opt/config-service-deployable/
 
-      # Logging into Docker Hub
-      - echo "================ Logging in to Docker Hub ==================="
+      # # List contents of /opt to verify
+      # - ls -l /opt/
+
+      # #-----------------------------------------------------------------------------------------------------------
+
+      
+      # - echo ===================Installing Maven dependencies===================
+      # - mvn -X -am clean compile install -pl :config-service
+
+
+      # - ls -l 
+      # - ls -l ./bayview-common-services/
+      # - mvn -f ./bayview-common-services/config-service/pom.xml clean package -P deployment -Dpackage.location=/opt/
+      # - ls -l /opt/
+
+      - mvn clean package -DskipTests
+      - ls -l target/
+      - echo =================== Logging in to Docker Hub ===================
       - echo $DOCKER_HUB_PASSWORD | docker login --username $DOCKER_HUB_USERNAME --password-stdin
 
-      # Logging into AWS ECR
-      - echo "================ Logging in to Amazon ECR ==================="
+      # Login to ECR
+      - echo =================== Logging in to Amazon ECR ===================
       - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $REPOSITORY_URI
 
-      # Set variables for image name and tag
       - IMAGENAME=symboco
-      - DATE_TAG=$(date +%Y-%m-%d_%H%M%S)
-      - IMAGE_TAG=$DATE_TAG
-      - echo "Image Name: $IMAGENAME"
-      - echo "Image Tag: $IMAGE_TAG"
+      - DATE_TAG=$(date +%Y-%m-%d_%H%M%S)  
+      - IMAGE_TAG=$DATE_TAG  
 
   build:
     commands:
-      # Build the Docker image
-      - echo "================ Building the Docker image ==================="
+      - echo =================== Building the Docker image ===================
       - docker build --no-cache -t $IMAGENAME:$IMAGE_TAG .
       - docker images
-      - echo "Docker image built successfully."
 
   post_build:
     commands:
-      # Tag the Docker image for both Docker Hub and ECR
-      - echo "================ Tagging the Docker image ==================="
-      - docker tag $IMAGENAME:$IMAGE_TAG amitayare/devops:$IMAGE_TAG
-      - docker tag $IMAGENAME:$IMAGE_TAG amitayare/devops:latest
-      - docker tag $IMAGENAME:$IMAGE_TAG $REPOSITORY_URI:$IMAGE_TAG
-      - docker tag $IMAGENAME:$IMAGE_TAG $REPOSITORY_URI:latest
+    - echo =================== Tagging the Docker image ===================
+    # Tag the image
+    - docker tag $IMAGENAME:$IMAGE_TAG amitayare/devops:$IMAGE_TAG
+    - docker tag $IMAGENAME:$IMAGE_TAG amitayare/devops:latest
 
-      # Push the Docker image to Docker Hub
-      - echo "================ Pushing the Docker image to Docker Hub ==================="
-      - docker push amitayare/devops:$IMAGE_TAG
-      - docker push amitayare/devops:latest
+    # ECR repository
+    - docker tag $IMAGENAME:$IMAGE_TAG $REPOSITORY_URI:$IMAGE_TAG
+    - docker tag $IMAGENAME:$IMAGE_TAG $REPOSITORY_URI:latest
 
-      # Push the Docker image to Amazon ECR
-      - echo "================ Pushing the Docker image to Amazon ECR ==================="
-      - docker push $REPOSITORY_URI:$IMAGE_TAG
-      - docker push $REPOSITORY_URI:latest
+    # Push Docker Hub
+    - echo =================== Pushing the Docker image to Docker Hub ===================
+    - docker push amitayare/devops:$IMAGE_TAG
+    - docker push amitayare/devops:latest
+
+    # Push the Docker image to ECR
+    - echo =================== Pushing the Docker image to ECR ===================
+    - docker push $REPOSITORY_URI:$IMAGE_TAG
 
 artifacts:
   files:
-    - target/*.jar  # Include the JAR file as an artifact to be used in subsequent stages or for debugging
+    - config-service-0.0.1-SNAPSHOT.jar
+    - 
+
+          
+
