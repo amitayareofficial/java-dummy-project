@@ -9,7 +9,7 @@ env:
 phases:
   install:
     commands:
-      # Update and install required dependencies
+      # Install required dependencies
       - echo "================ Installing dependencies =================="
       - apt-get update
       - apt-get install -y openjdk-8-jdk docker.io
@@ -28,7 +28,7 @@ phases:
       - mvn clean package -DskipTests
       - echo "================ Listing the JAR file =================="
       - ls -l target/
-      # Optionally: Check if the JAR exists, then proceed
+      # Ensure JAR file exists
       - if [ ! -f target/*.jar ]; then echo "JAR file not found!" && exit 1; fi
 
       # Logging into Docker Hub
