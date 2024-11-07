@@ -3,7 +3,7 @@ version: 0.2
 env:
   variables:
     DOCKER_HUB_USERNAME: "amitayare" 
-    DOCKER_HUB_PASSWORD: "your-docker-password"  
+    DOCKER_HUB_PASSWORD: "Devops@2024"  
     REPOSITORY_URI: "992382731807.dkr.ecr.ap-south-1.amazonaws.com/symboco-sit-registry"  
 
 phases:
